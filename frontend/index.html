@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Surveillance Blockchain Dashboard</title>
+
+  <!-- Ethers -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔐 AI Surveillance Blockchain Dashboard</h1>
+      <p>Sepolia Testnet - Secure Alert Storage System</p>
+    </div>
+
+    <div class="content">
+      <div class="contract-info">
+        <strong>📝 Smart Contract Details:</strong>
+        <code>0x029Eb21a92570aAD662513B55deDD7771eeC1cCC</code>
+      </div>
+
+      <div class="wallet-section">
+        <button id="connectBtn" class="btn">Connect MetaMask</button>
+
+        <div id="walletInfo" class="hidden">
+          <div class="info-box">
+            <span class="info-label">Connected Wallet:</span>
+            <span class="info-value" id="walletAddress"></span>
+          </div>
+          <div class="info-box" style="margin-top: 10px;">
+            <span class="info-label">Network:</span>
+            <span class="info-value">Sepolia Testnet</span>
+          </div>
+        </div>
+
+        <div id="walletError" class="error hidden"></div>
+      </div>
+
+      <div id="mainContent" class="hidden">
+        <div class="stats-section">
+          <div class="stat-card">
+            <h3>Total Alerts Stored</h3>
+            <div class="stat-number" id="totalAlerts">0</div>
+          </div>
+        </div>
+
+        <!-- STORE ALERT SECTION -->
+        <div class="store-section">
+          <h2>➕ Store New Alert</h2>
+
+          <div class="form-group">
+            <label for="alertTypeInput">Alert Type</label>
+            <input type="text" id="alertTypeInput" placeholder="e.g., Intrusion, Fire, Unauthorized Access">
+          </div>
+
+          <div class="form-group">
+            <label for="alertHashInput">Alert Hash</label>
+            <input type="text" id="alertHashInput" placeholder="e.g., QmXxxx... or any hash value">
+          </div>
+
+          <div class="form-group">
+            <label for="cameraIdInput">Camera ID</label>
+            <input type="text" id="cameraIdInput" placeholder="e.g., CAM-001, CAM-002">
+          </div>
+
+          <button class="btn btn-success" id="storeBtn">Store Alert to Blockchain</button>
+          <div id="storeError" class="error hidden"></div>
+          <div id="storeSuccess" class="success hidden"></div>
+        </div>
+
+        <!-- FETCH ALERT SECTION -->
+        <div class="fetch-section">
+          <h2>🔍 Fetch Alert Details</h2>
+
+          <div class="input-group">
+            <input type="number" id="alertIdInput" placeholder="Enter Alert ID (e.g., 0, 1, 2...)" min="0">
+            <button class="btn" id="fetchBtn">Fetch Alert</button>
+          </div>
+
+          <div id="fetchError" class="error hidden"></div>
+          <div id="fetchSuccess" class="success hidden"></div>
+        </div>
+
+        <div id="alertDetailsSection" class="hidden">
+          <div class="alert-details">
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody id="alertDetailsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="loadingIndicator" class="loading hidden">
+          Loading data from blockchain...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS -->
+  <script src="./script.js"></script>
+</body>
+</html>
