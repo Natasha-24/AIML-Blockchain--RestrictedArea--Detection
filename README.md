@@ -32,12 +32,14 @@ When suspicious activity is detected, an alert is generated, hashed using SHA-25
 
 ---
 ## Installation
-```bash
+
 pip install -r requirements.txt
 python backend/main.py
 
 ---
+
 ## Project Structure
+```bash
 backend/
 │
 ├── main.py
