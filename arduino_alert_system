@@ -1,0 +1,153 @@
+#include <LiquidCrystal.h>
+
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+
+// Pins (Arduino drives transistor/MOSFET/relay input for 12V buzzer)
+const int LED_LOITER = 13;
+const int LED_GROUP  = 7;
+const int BUZZER     = 8;
+
+// Alert LED hold time
+const unsigned long ALERT_HOLD_MS = 3000;
+
+unsigned long loiterUntil = 0;
+unsigned long groupUntil  = 0;
+
+// ---------------- SOS TIMING (in ms) ----------------
+// Match your Kotlin idea: dot=200ms, dash=600ms, intra-gap=200ms, letter gap=600ms
+const unsigned long DOT_MS        = 200;
+const unsigned long DASH_MS       = 600;
+const unsigned long GAP_MS        = 200;  // between elements inside a letter
+const unsigned long LETTER_GAP_MS = 600;  // between letters (S->O, O->S)
+
+// SOS sequence encoded as alternating ON duration + OFF duration steps.
+// This plays: S (dot dot dot) + letterGap + O (dash dash dash) + letterGap + S (dot dot dot)
+// We'll implement as a simple step machine (toggle ON/OFF with specific durations).
+struct Step {
+  bool on;                 // true = buzzer ON, false = buzzer OFF
+  unsigned long duration;  // how long to keep this state
+};
+
+// Build SOS steps:
+// For dots/dashes: ON for DOT/DASH, OFF for GAP (except last element in letter uses LETTER_GAP)
+const Step SOS_STEPS[] = {
+  // S: dot gap dot gap dot letterGap
+  {true,  DOT_MS}, {false, GAP_MS},
+  {true,  DOT_MS}, {false, GAP_MS},
+  {true,  DOT_MS}, {false, LETTER_GAP_MS},
+
+  // O: dash gap dash gap dash letterGap
+  {true,  DASH_MS}, {false, GAP_MS},
+  {true,  DASH_MS}, {false, GAP_MS},
+  {true,  DASH_MS}, {false, LETTER_GAP_MS},
+
+  // S: dot gap dot gap dot (end with OFF GAP_MS just to finish cleanly)
+  {true,  DOT_MS}, {false, GAP_MS},
+  {true,  DOT_MS}, {false, GAP_MS},
+  {true,  DOT_MS}, {false, GAP_MS}
+};
+
+const int SOS_STEPS_COUNT = sizeof(SOS_STEPS) / sizeof(SOS_STEPS[0]);
+
+// SOS player state
+bool sosActive = false;
+int sosIndex = 0;
+unsigned long sosNextTime = 0;
+
+void buzzerOnFn()  { digitalWrite(BUZZER, HIGH); }
+void buzzerOffFn() { digitalWrite(BUZZER, LOW);  }
+
+void startSOS() {
+  sosActive = true;
+  sosIndex = 0;
+  sosNextTime = millis();   // start immediately
+  buzzerOffFn();            // start from OFF, steps will set ON first
+}
+
+void stopSOS() {
+  sosActive = false;
+  sosIndex = 0;
+  buzzerOffFn();
+}
+
+// Call this every loop (non-blocking)
+void updateSOS(unsigned long now) {
+  if (!sosActive) return;
+  if (now < sosNextTime) return;
+
+  // Apply current step
+  if (SOS_STEPS[sosIndex].on) buzzerOnFn();
+  else                        buzzerOffFn();
+
+  sosNextTime = now + SOS_STEPS[sosIndex].duration;
+  sosIndex++;
+
+  // Stop after completing full SOS once
+  if (sosIndex >= SOS_STEPS_COUNT) {
+    stopSOS();
+  }
+}
+
+void showMessage(const char* line1, const char* line2) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(line1);
+  lcd.setCursor(0, 1);
+  lcd.print(line2);
+}
+
+void setup() {
+  pinMode(LED_LOITER, OUTPUT);
+  pinMode(LED_GROUP, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+
+  digitalWrite(LED_LOITER, LOW);
+  digitalWrite(LED_GROUP, LOW);
+  buzzerOffFn();
+
+  Serial.begin(9600);
+
+  lcd.begin(16, 2);
+  showMessage("SYSTEM READY", "Waiting alerts");
+}
+
+void loop() {
+  unsigned long now = millis();
+
+  // Keep SOS running without blocking
+  updateSOS(now);
+
+  // Auto turn OFF LEDs after hold time
+  if (now > loiterUntil) digitalWrite(LED_LOITER, LOW);
+  if (now > groupUntil)  digitalWrite(LED_GROUP, LOW);
+
+  if (Serial.available()) {
+    String msg = Serial.readStringUntil('\n');
+    msg.trim();
+
+    if (msg == "LOITER") {
+      digitalWrite(LED_LOITER, HIGH);
+      loiterUntil = now + ALERT_HOLD_MS;
+
+      startSOS();  // <<< SOS starts here
+      showMessage("ALERT:", "LOITERING");
+      Serial.println("ACK_LOITER");
+    }
+    else if (msg == "GROUP") {
+      digitalWrite(LED_GROUP, HIGH);
+      groupUntil = now + ALERT_HOLD_MS;
+
+      startSOS();  // <<< SOS starts here
+      showMessage("ALERT:", "GROUP DETECTED");
+      Serial.println("ACK_GROUP");
+    }
+    else if (msg == "CLEAR") {
+      digitalWrite(LED_LOITER, LOW);
+      digitalWrite(LED_GROUP, LOW);
+
+      stopSOS();  // stop SOS immediately
+      showMessage("SYSTEM READY", "Waiting alerts");
+      Serial.println("ACK_CLEAR");
+    }
+  }
+}
